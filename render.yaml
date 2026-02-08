@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: fix-http-proxy
+    env: node
+    buildCommand: npm install
+    startCommand: node http-proxy-server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
