@@ -61,3 +61,4 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 module.exports = app;
+Add root endpoint and improve logging;
