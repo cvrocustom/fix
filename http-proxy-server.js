@@ -1,11 +1,43 @@
+```javascript
 const express = require('express');
 const axios = require('axios');
 const app = express();
-const PORT = process.env.PORT || 80; // Puerto HTTP estándar
+const PORT = process.env.PORT || 10000;
 
 // Middleware para parsear JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Log de todas las peticiones
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Endpoint raíz
+app.get('/', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'Servidor HTTP proxy funcionando',
+    endpoints: {
+      health: '/health',
+      obd: '/obd (POST)'
+    },
+    target: 'https://fix-woad.vercel.app',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Endpoint de salud
+app.get('/health', (req, res) => {
+  console.log('✅ Health check solicitado');
+  res.json({
+    status: 'OK',
+    message: 'Servidor HTTP proxy funcionando',
+    target: 'https://fix-woad.vercel.app',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Endpoint HTTP que redirige a Vercel HTTPS
 app.post('/obd', async (req, res) => {
@@ -17,7 +49,8 @@ app.post('/obd', async (req, res) => {
     const response = await axios.post('https://fix-woad.vercel.app/obd', req.body, {
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 10000
     });
     
     console.log(`✅ Respuesta de Vercel:`, response.data);
@@ -35,30 +68,15 @@ app.post('/obd', async (req, res) => {
   }
 });
 
-// Endpoint de salud
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Servidor HTTP proxy funcionando',
-    target: 'https://fix-woad.vercel.app',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Redirigir todas las demás rutas a HTTPS
-app.get('*', (req, res) => {
-  const httpsUrl = `https://fix-woad.vercel.app${req.path}`;
-  res.redirect(301, httpsUrl);
-});
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Servidor HTTP proxy ejecutándose en puerto ${PORT}`);
-  console.log(`📡 Endpoint para dispositivos: http://[TU-IP]:${PORT}/obd`);
+  console.log(`📡 Endpoint para dispositivos: /obd`);
   console.log(`🔄 Redirige a: https://fix-woad.vercel.app/obd`);
-  console.log(`💡 Configura tu dispositivo con: [TU-IP]/obd y puerto 80`);
+  console.log(`✅ Servidor listo para recibir peticiones`);
 }).on('error', (err) => {
   console.error('❌ Error del servidor:', err);
 });
 
 module.exports = app;
-Add root endpoint and improve logging;
+```
+  
