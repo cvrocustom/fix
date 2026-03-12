@@ -5,6 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const TeltonikaParser = require('complete-teltonika-parser');
+const { checkAlerts } = require('./alertSystem');
 require('dotenv').config();
 
 // ============================================
@@ -203,25 +204,38 @@ async function saveTelemetry(records) {
   try {
     if (!records || records.length === 0) return;
     
-    // Guardar en MongoDB (OPCIÓN A - Historial)
+    // Guardar en MongoDB
     await Telemetry.insertMany(records);
     
-    // Actualizar cache con el último registro
-    const latestRecord = records[records.length - 1];
-    deviceCache.set(latestRecord.deviceId, latestRecord);
+    // Procesar cada registro para alertas y emisión en tiempo real
+    for (const record of records) {
+      // Actualizar cache
+      deviceCache.set(record.deviceId, record);
+      
+      // 🚨 DETECTAR ALERTAS INSTANTÁNEAMENTE
+      const alerts = checkAlerts(record, io);
+      
+      // Emitir datos en tiempo real
+      io.to(`device-${record.deviceId}`).emit('telemetry', record);
+      
+      // Si hay alertas, emitirlas también
+      if (alerts.length > 0) {
+        io.to(`device-${record.deviceId}`).emit('alerts', alerts);
+        console.log(`🚨 ${alerts.length} alertas detectadas para ${record.deviceId}`);
+      }
+    }
     
-    // OPCIÓN B - Emitir via Socket.IO en TIEMPO REAL
-    io.to(`device-${latestRecord.deviceId}`).emit('telemetry', latestRecord);
+    // Notificar actualización general
+    const latestRecord = records[records.length - 1];
     io.emit('device-update', {
       deviceId: latestRecord.deviceId,
       timestamp: latestRecord.timestamp
     });
     
-    console.log(`💾 Guardados ${records.length} registros en MongoDB`);
-    console.log(`📡 Emitidos ${records.length} registros via Socket.IO`);
+    console.log(`💾 ${records.length} registros guardados y emitidos`);
     
   } catch (error) {
-    console.error('❌ Error guardando en MongoDB:', error.message);
+    console.error('❌ Error guardando telemetría:', error.message);
   }
 }
 
